@@ -50,7 +50,7 @@ async def handle_callback_query(event):
         # Open image and draw text
         image = Image.open(io.BytesIO(photo))
         draw = ImageDraw.Draw(image)
-        font = ImageFont.truetype("arial.ttf", 40)  # Ensure this font is available
+        font = ImageFont.truetype("font.ttf", 40)  # Ensure this font is available
 
         # Draw the text on the image
         draw.text((10, 10), text, fill=color, font=font)
