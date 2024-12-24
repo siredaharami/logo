@@ -7,6 +7,7 @@ api_id = 25742938
 api_hash = "b35b715fe8dc0a58e8048988286fc5b6"
 bot_token = "7796646089:AAG3yoXJRSI-D2A5w1kPraju_qpL_Xt3JO8"
 
+
 client = TelegramClient('logo_maker_bot', api_id, api_hash).start(bot_token=bot_token)
 
 users_data = {}
@@ -17,53 +18,69 @@ async def start(event):
 
 @client.on(events.NewMessage(func=lambda e: e.photo))
 async def handle_photo(event):
-    # Download the image
     photo = await event.download_media(file=bytes)
-    users_data[event.chat_id] = {'photo': photo}
-    await event.respond("I got the image! Now send me the text you want to add to the image.")
+    users_data[event.chat_id] = {'photo': photo, 'text': '', 'color': 'black', 'position': (10, 10)}
 
-@client.on(events.NewMessage)
+    await update_image_with_text(event, "I got the image! Now send me your logo text.")
+
+async def update_image_with_text(event, message):
+    chat_id = event.chat_id
+    data = users_data.get(chat_id)
+    if not data:
+        return
+
+    # Create an image with text
+    image = Image.open(io.BytesIO(data['photo']))
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype("arial.ttf", 40)
+    draw.text(data['position'], data['text'], fill=data['color'], font=font)
+
+    buf = io.BytesIO()
+    image.save(buf, format='PNG')
+    buf.seek(0)
+
+    # Send updated image with buttons
+    await client.send_file(
+        chat_id,
+        buf,
+        caption=message,
+        buttons=[
+            [Button.inline('LEFT ⬅️', b'left'), Button.inline('RIGHT ➡️', b'right')],
+            [Button.inline('UP ⬆️', b'up'), Button.inline('DOWN ⬇️', b'down')],
+            [Button.inline('RED', b'red'), Button.inline('GREEN', b'green'), Button.inline('BLUE', b'blue'), Button.inline('BLACK', b'black')]
+        ]
+    )
+
+@client.on(events.NewMessage(func=lambda e: e.text and e.chat_id in users_data))
 async def handle_text(event):
     chat_id = event.chat_id
-    if chat_id in users_data and 'photo' in users_data[chat_id]:
-        text = event.raw_text
-        users_data[chat_id]['text'] = text
-
-        # Send inline keyboard for color selection
-        await event.respond(
-            "Please choose a color for the text:",
-            buttons=[
-                [Button.inline("Red", b'red'), Button.inline("Green", b'green'), Button.inline("Blue", b'blue')],
-                [Button.inline("Black", b'black'), Button.inline("White", b'white')]
-            ]
-        )
+    users_data[chat_id]['text'] = event.raw_text
+    await update_image_with_text(event, "Text added! Choose a color or position.")
 
 @client.on(events.CallbackQuery)
-async def handle_callback_query(event):
-    color = event.data.decode("utf-8")
+async def callback(event):
+    data = event.data.decode('utf-8')
     chat_id = event.chat_id
+    user_data = users_data.get(chat_id)
 
-    if chat_id in users_data and 'photo' in users_data[chat_id] and 'text' in users_data[chat_id]:
-        # Retrieve photo and text
-        photo = users_data[chat_id]['photo']
-        text = users_data[chat_id]['text']
+    if not user_data:
+        return
 
-        # Open image and draw text
-        image = Image.open(io.BytesIO(photo))
-        draw = ImageDraw.Draw(image)
-        font = ImageFont.truetype("arial.ttf", 40)
+    if data in ['left', 'right', 'up', 'down']:
+        x, y = user_data['position']
+        if data == 'left':
+            x -= 10
+        elif data == 'right':
+            x += 10
+        elif data == 'up':
+            y -= 10
+        elif data == 'down':
+            y += 10
+        user_data['position'] = (x, y)
 
-        # Draw the text on the image
-        draw.text((10, 10), text, fill=color, font=font)
+    elif data in ['red', 'green', 'blue', 'black']:
+        user_data['color'] = data
 
-        # Save the image to a bytes buffer
-        buf = io.BytesIO()
-        image.save(buf, format='PNG')
-        buf.seek(0)
+    await update_image_with_text(event, "Text updated!")
 
-        # Send the image back
-        await client.send_file(chat_id, buf, caption="Here is your logo!")
-        await event.answer("Logo created!")
-
-# Run the client
 client.run_until_disconnected()
