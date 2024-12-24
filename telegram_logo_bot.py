@@ -3,9 +3,9 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 
 # Use your own credentials
-api_id = '25742938'
-api_hash = 'b35b715fe8dc0a58e8048988286fc5b6'
-bot_token = '7796646089:AAG3yoXJRSI-D2A5w1kPraju_qpL_Xt3JO8'
+api_id = 25742938
+api_hash = b35b715fe8dc0a58e8048988286fc5b6
+bot_token = 7796646089:AAG3yoXJRSI-D2A5w1kPraju_qpL_Xt3JO8
 
 client = TelegramClient('logo_maker_bot', api_id, api_hash).start(bot_token=bot_token)
 
